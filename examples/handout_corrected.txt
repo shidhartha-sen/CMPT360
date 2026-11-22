@@ -1,0 +1,6 @@
+# Handout example with R[1] = 3, so that sprinkler 1 reaches the orange at 6
+3 3 3
+2 6 11
+4 8 14
+3 7 12
+3 2 1

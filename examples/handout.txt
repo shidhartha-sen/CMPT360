@@ -1,0 +1,7 @@
+# Example from the handout, exactly as printed: R = {2,2,1}
+3 3 3
+2 6 11
+4 8 14
+3 7 12
+2 2 1
+

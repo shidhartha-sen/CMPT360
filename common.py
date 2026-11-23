@@ -1,5 +1,5 @@
 import sys
-from bisect import bisect_right
+from bisect import bisect_left, bisect_right
 
 
 def _num(tok):
@@ -26,7 +26,7 @@ def read_instance(path):
     return O, C, S, R
 
 
-#Return ( true or false based on if all trees are watered, the exact number of watered cacti) for an set of sprinkler indices
+#return ( true or false based on if all trees are watered, the exact number of watered cacti) for an set of sprinkler indices
 def evaluate(O, C, S, R, chosen):
     segs = sorted((S[i] - R[i], S[i] + R[i]) for i in set(chosen))
     merged = []                                  
@@ -44,3 +44,45 @@ def evaluate(O, C, S, R, chosen):
     ok = all(inside(x) for x in O)
     wet = sum(1 for x in C if inside(x))
     return ok, wet
+
+
+class InfeasibleError(Exception):
+    """Raised when some orange tree is not watered by any sprinkler"""
+
+
+"""
+sort O and C:  describe each sprinkler as (l, r, idx, oa, ob, ca, cb):
+it waters trees [oa, ob) and cacti [ca, cb) in sorted order.
+
+
+R1: sprinklers that water no tree are dropped.
+"""
+def build_intervals(O, C, S, R):
+    Os = sorted(O)
+    Cs = sorted(C)
+    ivs = []
+    for idx in range(len(S)):
+        l = S[idx] - R[idx]
+        r = S[idx] + R[idx]
+        oa = bisect_left(Os, l)
+        ob = bisect_right(Os, r)
+        if oa == ob:                 # waters no tree: never useful
+            continue
+        ca = bisect_left(Cs, l)
+        cb = bisect_right(Cs, r)
+        ivs.append((l, r, idx, oa, ob, ca, cb))
+    return Os, Cs, ivs
+
+
+def check_feasible(o, ivs):
+    """Every tree must be inside some interval (difference array over tree indices)."""
+    diff = [0] * (o + 1)
+    for (_, _, _, oa, ob, _, _) in ivs:
+        diff[oa] += 1
+        diff[ob] -= 1
+    run = 0
+    for t in range(o):
+        run += diff[t]
+        if run == 0:
+            raise InfeasibleError(f"orange tree #{t} (sorted order) is not watered by any sprinkler")
+            

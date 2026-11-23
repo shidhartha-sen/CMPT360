@@ -1,0 +1,54 @@
+import random
+import sys
+from common import evaluate, InfeasibleError
+from bruteforce import brute_force
+from baseline import solve_baseline
+
+SOLVERS = [("baseline", solve_baseline)]          
+
+
+def random_instance(rng):
+    L = rng.randint(5, 40)
+    s = rng.randint(0, 11)
+    S = [rng.randint(0, L) for _ in range(s)]
+    R = [rng.choice([rng.randint(0, 6), 2]) for _ in range(s)]
+    if rng.random() < 0.3:                        
+        R = [rng.randint(0, 5)] * s
+    O = []
+    for _ in range(rng.randint(0, 8)):
+        if s and rng.random() < 0.9:
+            k = rng.randrange(s)
+            O.append(rng.randint(S[k] - R[k], S[k] + R[k]))
+        else:
+            O.append(rng.randint(0, L))           
+    C = [rng.randint(-2, L + 2) for _ in range(rng.randint(0, 12))]
+    if rng.random() < 0.2:                        
+        O = [x + 0.5 for x in O]
+        C = [x + 0.5 for x in C]
+    return O, C, S, R
+
+
+def main():
+    trials = int(sys.argv[1]) if len(sys.argv) > 1 else 2000
+    rng = random.Random(360)
+    infeasible = 0
+    for t in range(trials):
+        O, C, S, R = random_instance(rng)
+        _, opt = brute_force(O, C, S, R)
+        if opt is None:
+            infeasible += 1
+        for name, solver in SOLVERS:
+            try:
+                chosen, cost = solver(O, C, S, R)
+            except InfeasibleError:
+                assert opt is None, (name, "said infeasible but brute force found", opt, O, C, S, R)
+                continue
+            ok, wet = evaluate(O, C, S, R, chosen)
+            assert ok, (name, "returned a set that leaves a tree dry", O, C, S, R, chosen)
+            assert wet == cost, (name, "reported cost", cost, "but real cost is", wet)
+            assert cost == opt, (name, "found", cost, "but optimum is", opt, O, C, S, R)
+    print(f"OK: {trials} random instances, all solvers match brute force ({infeasible} infeasible)")
+
+
+if __name__ == "__main__":
+    main()

@@ -14,7 +14,7 @@ def read_instance(path):
     text = open(path).read()
     toks = []
     for line in text.splitlines():
-        toks.extend(line.split("#", 1)[0].split())     # drop comments
+        toks.extend(line.split("#", 1)[0].split())     
     o, c, s = int(toks[0]), int(toks[1]), int(toks[2])
     nums = [_num(t) for t in toks[3:]]
     if len(nums) != o + c + 2 * s:
@@ -74,8 +74,8 @@ def build_intervals(O, C, S, R):
     return Os, Cs, ivs
 
 
+#every tree must be inside some interval.
 def check_feasible(o, ivs):
-    """Every tree must be inside some interval (difference array over tree indices)."""
     diff = [0] * (o + 1)
     for (_, _, _, oa, ob, _, _) in ivs:
         diff[oa] += 1

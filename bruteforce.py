@@ -5,12 +5,14 @@ from common import read_instance, evaluate
 def brute_force(O, C, S, R):
     s = len(S)
     best_cost, best_set = None, None
-    for mask in range(1 << s):                   # each number 0..2^s-1 is a subset
+    # each number 0..2^s-1 is a subset
+    for mask in range(1 << s):                   
         chosen = [i for i in range(s) if mask >> i & 1]
         ok, wet = evaluate(O, C, S, R, chosen)
         if ok and (best_cost is None or wet < best_cost):
             best_cost, best_set = wet, chosen
-    return best_set, best_cost                  # if its none and none its not feasible ans 
+        # if its none and none its not feasible ans 
+    return best_set, best_cost                  
 
 
 if __name__ == "__main__":

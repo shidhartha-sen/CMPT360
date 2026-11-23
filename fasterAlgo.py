@@ -4,6 +4,16 @@ from common import read_instance, build_intervals, check_feasible, evaluate, Inf
 INF = float("inf")
 L_, R_, IDX, OA, OB, CA, CB = range(7)        # positions in an interval record
 
+def reduce_intervals(ivs):
+    """Remove exact duplicate intervals. Returns intervals sorted by (l, r)."""
+    ivs = sorted(ivs, key=lambda v: (v[L_], v[R_], v[IDX]))
+    dedup = []
+    for v in ivs:
+        if dedup and dedup[-1][L_] == v[L_] and dedup[-1][R_] == v[R_]:
+            continue                      # same interval as the previous one
+        dedup.append(v)
+    return dedup
+
 
 #ivs sorted by (l, r). dp[j] = best chain ending with j that waters every tree <= r_j.
 def dp_quadratic(Os, Cs, ivs):
@@ -56,7 +66,9 @@ def solve(O, C, S, R, method="quadratic", stats=None):
     check_feasible(o, ivs)
     if stats is not None:
         stats.update(s_input=len(S), s_after_r1=len(ivs)) 
-    ivs.sort(key=lambda v: (v[L_], v[R_]))
+    ivs = reduce_intervals(ivs)           # also sorts by (l, r)
+    if stats is not None:
+        stats["s_after_dup"] = len(ivs)    
     dp, par = dp_quadratic(Os, Cs, ivs)
     return _finish(o, ivs, dp, par)
 
@@ -67,13 +79,14 @@ def main():
     try:
         chosen, cost = solve(O, C, S, R, stats=st)
     except InfeasibleError as e:
-        print("Infeasible:", e)
+        print("infeasible:", e)
         sys.exit(2)
     ok, wet = evaluate(O, C, S, R, chosen)
-    print("Chosen sprinklers (1-based):", sorted(i + 1 for i in chosen))
-    print("Cacti watered:", cost, "| checker agrees:", ok and wet == cost)
+    print("chosen sprinklers (1-based):", sorted(i + 1 for i in chosen))
+    print("cacti watered:", cost, "| checker agrees:", ok and wet == cost)
     if "--stats" in sys.argv:
-        print(f"Sprinklers: input {st.get('s_input')}, after R1 {st.get('s_after_r1')}")
+            print(f"sprinklers: input {st.get('s_input')}, after R1 {st.get('s_after_r1')}, "
+              f"after duplicates {st.get('s_after_dup')}")
 
 
 if __name__ == "__main__":

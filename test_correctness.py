@@ -3,8 +3,10 @@ import sys
 from common import evaluate, InfeasibleError
 from bruteforce import brute_force
 from baseline import solve_baseline
+from fasterAlgo import solve
 
-SOLVERS = [("baseline", solve_baseline)]          
+SOLVERS = [("baseline", solve_baseline),
+           ("quadratic", lambda O, C, S, R: solve(O, C, S, R, "quadratic"))]
 
 
 def random_instance(rng):

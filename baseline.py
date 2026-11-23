@@ -35,18 +35,24 @@ def solve_baseline(O, C, S, R, stats=None):
         for k in covering[p]:
             l, r, idx, oa, ob, ca, cb = ivs[k]
             added = 0
-            for t in range(ca, cb):              # water this sprinkler's cacti
+            # water this sprinkler's cacti
+            for t in range(ca, cb):              
                 if hits[t] == 0:
                     added += 1
                 hits[t] += 1
-            if cost + added < best_cost:         # bound
+            # bound
+            if cost + added < best_cost:         
                 chosen.append(idx)
-                if ob == o:                      # every tree watered: new best
+                if ob == o:                      
+                    # every tree watered: new best
                     best_cost, best_set = cost + added, chosen[:]
                 else:
-                    dfs(ob, cost + added)        # next dry tree is index ob
+                    # next dry tree is index ob
+                    dfs(ob, cost + added)        
+
                 chosen.pop()
-            for t in range(ca, cb):              # undo
+            # undo
+            for t in range(ca, cb):              
                 hits[t] -= 1
 
     dfs(0, 0)
@@ -64,9 +70,9 @@ def main():
         print("Infeasible:", e)
         sys.exit(2)
     ok, wet = evaluate(O, C, S, R, chosen)       # independent check
-    print("Chosen sprinklers (1-based):", sorted(i + 1 for i in chosen))
-    print("Cacti watered:", cost, "| checker agrees:", ok and wet == cost)
-    print("Search nodes:", st["nodes"])
+    print("chosen sprinklers (1-based):", sorted(i + 1 for i in chosen))
+    print("cacti watered:", cost, "| checker agrees:", ok and wet == cost)
+    print("search nodes:", st["nodes"])
 
 
 if __name__ == "__main__":

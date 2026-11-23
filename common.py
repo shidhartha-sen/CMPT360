@@ -66,7 +66,8 @@ def build_intervals(O, C, S, R):
         r = S[idx] + R[idx]
         oa = bisect_left(Os, l)
         ob = bisect_right(Os, r)
-        if oa == ob:                 # waters no tree: never useful
+        # waters no tree: never useful
+        if oa == ob:                 
             continue
         ca = bisect_left(Cs, l)
         cb = bisect_right(Cs, r)
@@ -85,4 +86,4 @@ def check_feasible(o, ivs):
         run += diff[t]
         if run == 0:
             raise InfeasibleError(f"orange tree #{t} (sorted order) is not watered by any sprinkler")
-            
+            d

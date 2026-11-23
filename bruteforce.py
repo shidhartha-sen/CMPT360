@@ -19,7 +19,7 @@ if __name__ == "__main__":
     O, C, S, R = read_instance(sys.argv[1])
     chosen, cost = brute_force(O, C, S, R)
     if chosen is None:
-        print("Infeasible: some orange tree cannot be watered")
+        print("some orange tree cannot be watered")
     else:
-        print("Chosen sprinklers (1-based):", [i + 1 for i in chosen])
-        print("Cacti watered:", cost)
+        print("chosen sprinklers (1-based):", [i + 1 for i in chosen])
+        print("cacti watered:", cost)

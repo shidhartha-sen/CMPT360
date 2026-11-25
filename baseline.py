@@ -1,8 +1,13 @@
 import sys
+import time
 from common import read_instance, build_intervals, check_feasible, evaluate, InfeasibleError
 
+# raised when the search runs longer than the time limit
+class SearchLimit(Exception):
+    pass
 
-def solve_baseline(O, C, S, R, stats=None):
+
+def solve_baseline(O, C, S, R, time_limit=None, stats=None):
     Os, Cs, ivs = build_intervals(O, C, S, R)
     o = len(Os)
     if o == 0:
@@ -26,12 +31,17 @@ def solve_baseline(O, C, S, R, stats=None):
     hits = [0] * len(Cs)                        
     chosen = []
     nodes = 0
+    start = time.perf_counter()
     sys.setrecursionlimit(max(10000, 4 * o + 100))
 
     def dfs(p, cost):
         # invariant: trees 0..p-1 watered, tree p dry, cost < best_cost
         nonlocal best_cost, best_set, nodes
         nodes += 1
+        # checked every 1024 nodes
+        if time_limit is not None and (nodes & 1023) == 0 \
+                and time.perf_counter() - start > time_limit:
+            raise SearchLimit()
         for k in covering[p]:
             l, r, idx, oa, ob, ca, cb = ivs[k]
             added = 0
@@ -55,24 +65,35 @@ def solve_baseline(O, C, S, R, stats=None):
             for t in range(ca, cb):              
                 hits[t] -= 1
 
-    dfs(0, 0)
-    if stats is not None:
-        stats["nodes"] = nodes
+    try:
+        dfs(0, 0)
+    finally:
+        if stats is not None:
+            stats["nodes"] = nodes              # recorded even if we stopped early
     return best_set, best_cost
 
 
 def main():
+    if len(sys.argv) < 2:
+        print("usage: python3 baseline.py instance.txt [--limit SECONDS]")
+        sys.exit(1)
     O, C, S, R = read_instance(sys.argv[1])
+    limit = float(sys.argv[sys.argv.index("--limit") + 1]) if "--limit" in sys.argv else None
     st = {}
+    t0 = time.perf_counter()
     try:
-        chosen, cost = solve_baseline(O, C, S, R, stats=st)
+        chosen, cost = solve_baseline(O, C, S, R, time_limit=limit, stats=st)
     except InfeasibleError as e:
         print("Infeasible:", e)
         sys.exit(2)
+    except SearchLimit:
+        print(f"stopped after {limit} s ({st.get('nodes')} search nodes): optimum not proven")
+        sys.exit(3)
+    dt = time.perf_counter() - t0
     ok, wet = evaluate(O, C, S, R, chosen)       # independent check
     print("chosen sprinklers (1-based):", sorted(i + 1 for i in chosen))
     print("cacti watered:", cost, "| checker agrees:", ok and wet == cost)
-    print("search nodes:", st["nodes"])
+    print(f"search nodes: {st['nodes']}   time: {dt:.4f} s")
 
 
 if __name__ == "__main__":

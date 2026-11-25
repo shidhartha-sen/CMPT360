@@ -210,7 +210,7 @@ def main():
     dt = time.perf_counter() - t0
     ok, wet = evaluate(O, C, S, R, chosen)
     print("chosen sprinklers (1-based):", sorted(i + 1 for i in chosen))
-    print("cacti watered:", cost, "| checker agrees:", ok and wet == cost)
+    print("cacti watered:", cost, " checker agrees:", ok and wet == cost)
     if "--stats" in sys.argv:
         print(f"method: {st.get('method')}   time: {dt:.4f} s")
         print(f"sprinklers: input {st.get('s_input')}, after R1 {st.get('s_after_r1')}, "

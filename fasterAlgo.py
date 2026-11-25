@@ -59,6 +59,51 @@ def dp_quadratic(Os, Cs, ivs):
     return dp, par
 
 
+"""Minimum over positions 0..n-1 with point updates, O(log n) each.
+array layout like a binary heap tree: node k has children 2k and and then 2k+1,
+leaves start at index size."""
+class MinTree:
+
+    def __init__(self, n, sentinel):
+        size = 1
+        while size < max(1, n):
+            size *= 2
+        self.size = size
+        # t[0] is never written, it stays the sentinel
+        self.t = [sentinel] * (2 * size)     
+
+    def update(self, pos, key):
+        #Set position pos to keythen later fix the minimums on the way up
+        t = self.t
+        pos += self.size
+        t[pos] = key
+        pos >>= 1
+        while pos:
+            a, b = t[2 * pos], t[2 * pos + 1]
+            t[pos] = a if a < b else b
+            pos >>= 1
+
+    def query(self, lo, hi):
+        #Minimum over positions lo to hi minus 1 or whatever happens to be the sentinel if the range is empty
+        t = self.t
+        res = t[0]
+        lo += self.size
+        hi += self.size
+        while lo < hi:
+            # lo is a right child: take it, step right
+            if lo & 1:                       
+                if t[lo] < res:
+                    res = t[lo]
+                lo += 1
+            # node just left of hi is inside: take it
+            if hi & 1:                       
+                hi -= 1
+                if t[hi] < res:
+                    res = t[hi]
+            lo >>= 1
+            hi >>= 1
+        return res
+
 METHODS = {"quadratic": dp_quadratic}       # more will be added in later steps
 
 
@@ -101,6 +146,9 @@ def solve(O, C, S, R, method="quadratic", stats=None):
     return _finish(o, ivs, dp, par)             
 
 def main():
+    if len(sys.argv) < 2:
+        print(__doc__)
+        sys.exit(1)
     O, C, S, R = read_instance(sys.argv[1])
     method = sys.argv[sys.argv.index("--method") + 1] if "--method" in sys.argv else "quadratic"
     st = {}

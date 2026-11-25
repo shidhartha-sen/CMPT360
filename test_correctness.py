@@ -3,7 +3,7 @@ import sys
 from common import evaluate, InfeasibleError
 from bruteforce import brute_force
 from baseline import solve_baseline
-from fasterAlgo import solve
+from fasterAlgo import solve, MinTree
 
 SOLVERS = [("baseline", solve_baseline),
            ("quadratic", lambda O, C, S, R: solve(O, C, S, R, "quadratic"))]
@@ -30,7 +30,29 @@ def random_instance(rng):
     return O, C, S, R
 
 
+def test_mintree(trials=300):
+    """MinTree must agree with Python's min() after random updates and queries."""
+    rng = random.Random(1)
+    SENT = 10 ** 9
+    for _ in range(trials):
+        n = rng.randint(1, 40)
+        tree = MinTree(n, SENT)
+        arr = [SENT] * n                          # plain list kept in sync, for comparison
+        for _ in range(60):
+            if rng.random() < 0.5:
+                pos, key = rng.randrange(n), rng.randint(0, 1000)
+                tree.update(pos, key)
+                arr[pos] = key
+            else:
+                lo = rng.randint(0, n)
+                hi = rng.randint(lo, n)
+                expect = min(arr[lo:hi], default=SENT)
+                assert tree.query(lo, hi) == expect, ("MinTree wrong", n, lo, hi, arr)
+    print(f"OK: MinTree agrees with min() on {trials} random arrays")
+
+
 def main():
+    test_mintree()
     trials = int(sys.argv[1]) if len(sys.argv) > 1 else 2000
     rng = random.Random(360)
     infeasible = 0

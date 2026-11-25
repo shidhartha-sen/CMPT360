@@ -1,6 +1,6 @@
 import sys
 import time
-from common import read_instance, build_intervals, check_feasible, evaluate, InfeasibleError
+from common import read_instance, build_intervals, check_feasible, evaluate, InfeasibleError, bisect_left
 
 INF = float("inf")
 L_, R_, IDX, OA, OB, CA, CB = range(7)        # positions 
@@ -60,7 +60,7 @@ def dp_quadratic(Os, Cs, ivs):
 
 
 """Minimum over positions 0..n-1 with point updates, O(log n) each.
-array layout like a binary heap tree: node k has children 2k and and then 2k+1,
+array layout like a binary heap tree for node k has children 2k and and then 2k+1,
 leaves start at index size."""
 class MinTree:
 
@@ -73,7 +73,7 @@ class MinTree:
         self.t = [sentinel] * (2 * size)     
 
     def update(self, pos, key):
-        #Set position pos to keythen later fix the minimums on the way up
+        #set position pos to keythen later fix the minimums on the way up
         t = self.t
         pos += self.size
         t[pos] = key
@@ -104,7 +104,48 @@ class MinTree:
             hi >>= 1
         return res
 
-METHODS = {"quadratic": dp_quadratic}       # more will be added in later steps
+def dp_segtree(Os, Cs, ivs):
+    """Same recurrence as dp_quadratic, sprinklers processed in (l, r) order.
+    Overlap steps: the min-tree, indexed by rank of r, holds dp[i] - cb_i for
+    every sprinkler already processed -> best predecessor in one range query.
+    Gap steps: still a simple loop for now (made fast in the next step)."""
+    n = len(ivs)
+    c = len(Cs)
+    dp = [INF] * n
+    par = [-1] * n
+    order_r = sorted(range(n), key=lambda k: ivs[k][R_])   # sprinklers sorted by r
+    rs = [ivs[k][R_] for k in order_r]                      # their right ends, sorted
+    rank = [0] * n                                          # rank[k] = tree position of k
+    for pos, k in enumerate(order_r):
+        rank[k] = pos
+    M = n + 1                       # key = (value + OFF) * M + index
+    OFF = c + 1                     # makes value + OFF >= 1
+    SENT = (2 * c + 3) * M          # bigger than any real key
+    tree = MinTree(n, SENT)
+    for j in range(n):
+        l, r, _, oa, ob, ca, cb = ivs[j]
+        best, bp = (cb - ca, -1) if oa == 0 else (INF, -1)      # start
+        if oa > 0:                                               # gap steps (slow loop for now)
+            for i in range(j):
+                if dp[i] < INF and ivs[i][R_] < l and ivs[i][OB] == oa:
+                    cand = dp[i] + cb - ca
+                    if cand < best:
+                        best, bp = cand, i
+        lo = bisect_left(rs, l)                                  # overlap: l <= r_i < r
+        hi = bisect_left(rs, r)
+        if lo < hi:
+            key = tree.query(lo, hi)
+            if key < SENT:
+                i = key % M                                      # unpack index
+                cand = key // M - OFF + cb                       # unpack value, add cb_j
+                if cand < best:
+                    best, bp = cand, i
+        dp[j], par[j] = best, bp
+        if best < INF:                                           # now j can be a predecessor
+            tree.update(rank[j], (best - cb + OFF) * M + j)
+    return dp, par
+
+METHODS = {"quadratic": dp_quadratic, "segtree": dp_segtree}
 
 
 #Best chain that reaches past the last tree; follow parent pointers back.

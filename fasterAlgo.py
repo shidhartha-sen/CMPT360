@@ -1,6 +1,6 @@
 import sys
 import time
-from common import read_instance, build_intervals, check_feasible, evaluate, InfeasibleError, bisect_left
+from common import read_instance, build_intervals, check_feasible, format_solution, InfeasibleError, bisect_left
 
 INF = float("inf")
 L_, R_, IDX, OA, OB, CA, CB = range(7)        # positions
@@ -269,11 +269,9 @@ def main():
         print("Error:", e)
         sys.exit(2)
     dt = time.perf_counter() - t0
-    ok, wet = evaluate(O, C, S, R, chosen)
-    print("chosen sprinklers (1-based):", sorted(i + 1 for i in chosen))
-    print("cacti watered:", cost, " checker agrees:", ok and wet == cost)
+    print(format_solution(O, C, S, R, chosen, cost, f"fasterAlgo: {st.get('method', method)} DP"))
     if "--stats" in sys.argv:
-        print(f"method: {st.get('method')}   time: {dt:.4f} s")
+        print(f"time: {dt:.4f} s")
         print(f"sprinklers: input {st.get('s_input')}, after R1 {st.get('s_after_r1')}, "
               f"after duplicates {st.get('s_after_dup')}, after R2 {st.get('s_after_r2')}")
         print(f"proper family (no nested ranges): {st.get('proper')}")

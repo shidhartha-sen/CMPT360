@@ -107,3 +107,21 @@ def check_feasible(o, ivs):
         if run == 0:
             raise InfeasibleError(f"orange tree #{t} (sorted order) is not watered by any sprinkler")
             d
+
+# readable summary of a solution, long lists are shortened and re-checked with evaluate().
+def format_solution(O, C, S, R, chosen, cost, label, show=20):
+    chosen = sorted(chosen, key=lambda i: (S[i], i))      # left to right along the line
+    ok, wet = evaluate(O, C, S, R, chosen)
+    ids = [str(i + 1) for i in chosen]
+    pos = [str(S[i]) for i in chosen]
+    more = ""
+    if len(chosen) > show:
+        more = f" ... (+{len(chosen) - show} more)"
+        ids, pos = ids[:show], pos[:show]
+    lines = [f"[{label}]",
+             f"Sprinklers chosen: {len(chosen)} of {len(S)}",
+             f"Indices (1-based): {' '.join(ids) or '(none)'}{more}",
+             f"Positions:         {' '.join(pos) or '(none)'}{more}",
+             f"All orange trees watered: {'yes' if ok else 'NO'}",
+             f"Cacti watered: {cost}   (independent check: {'OK' if ok and wet == cost else 'MISMATCH'})"]
+    return "\n".join(lines)

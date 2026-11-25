@@ -1,6 +1,6 @@
 import sys
 import time
-from common import read_instance, build_intervals, check_feasible, evaluate, InfeasibleError
+from common import read_instance, build_intervals, check_feasible, format_solution, InfeasibleError
 
 # raised when the search runs longer than the time limit
 class SearchLimit(Exception):
@@ -90,10 +90,9 @@ def main():
         print(f"stopped after {limit} s ({st.get('nodes')} search nodes): optimum not proven")
         sys.exit(3)
     dt = time.perf_counter() - t0
-    ok, wet = evaluate(O, C, S, R, chosen)       # independent check
-    print("chosen sprinklers (1-based):", sorted(i + 1 for i in chosen))
-    print("cacti watered:", cost, "| checker agrees:", ok and wet == cost)
-    print(f"search nodes: {st['nodes']}   time: {dt:.4f} s")
+    print(format_solution(O, C, S, R, chosen, cost, "baseline: branch-and-bound search"))
+    if "--stats" in sys.argv:
+        print(f"search nodes: {st['nodes']}   time: {dt:.4f} s")
 
 
 if __name__ == "__main__":

@@ -3,7 +3,11 @@ import time
 from common import read_instance, build_intervals, check_feasible, evaluate, InfeasibleError, bisect_left
 
 INF = float("inf")
-L_, R_, IDX, OA, OB, CA, CB = range(7)        # positions 
+L_, R_, IDX, OA, OB, CA, CB = range(7)        # positions
+
+# raised when linear is asked for but some range is nested in another
+class NotProperError(ValueError):
+    pass
 
 #remove exact duplicate intervals. Returns intervals sorted by (l, r).
 def reduce_intervals(ivs):
@@ -160,7 +164,48 @@ def dp_segtree(Os, Cs, ivs):
             tree.update(rank[j], (best - cb + OFF) * M + j)
     return dp, par
 
-METHODS = {"quadratic": dp_quadratic, "segtree": dp_segtree}
+# proper family only, order by l = order by r, so overlap and gap blocks both slide right.
+def dp_linear(Os, Cs, ivs):
+    n = len(ivs)
+    dp = [INF] * n
+    par = [-1] * n
+    ov, ov_head = [], 0             # overlap queue: dp[i] - cb_i increasing
+    gp, gp_head = [], 0             # gap queue: dp[i] increasing
+    left = 0                        # indices < left end before l_j
+    for j in range(n):
+        l, r, _, oa, ob, ca, cb = ivs[j]
+        if j > 0 and dp[j - 1] < INF:                            # j-1 joins the overlap block
+            v = dp[j - 1] - ivs[j - 1][CB]
+            while len(ov) > ov_head and dp[ov[-1]] - ivs[ov[-1]][CB] >= v:
+                ov.pop()
+            ov.append(j - 1)
+        while left < j and ivs[left][R_] < l:                    # ends before l_j: overlap -> gap
+            if dp[left] < INF:
+                while len(gp) > gp_head and dp[gp[-1]] >= dp[left]:
+                    gp.pop()
+                gp.append(left)
+            left += 1
+        while ov_head < len(ov) and ov[ov_head] < left:          # no longer reaches l_j
+            ov_head += 1
+        if oa == 0:
+            best, bp = cb - ca, -1                               # start
+        else:
+            best, bp = INF, -1
+            a = Os[oa - 1]                                       # last tree left of l_j
+            while gp_head < len(gp) and ivs[gp[gp_head]][R_] < a:
+                gp_head += 1                                     # would leave tree a dry
+            if gp_head < len(gp):
+                i = gp[gp_head]
+                best, bp = dp[i] + cb - ca, i
+        if ov_head < len(ov):                                    # overlap
+            i = ov[ov_head]
+            cand = dp[i] - ivs[i][CB] + cb
+            if cand < best:
+                best, bp = cand, i
+        dp[j], par[j] = best, bp
+    return dp, par
+
+METHODS = {"quadratic": dp_quadratic, "segtree": dp_segtree, "linear": dp_linear}
 
 
 #Best chain that reaches past the last tree; follow parent pointers back.
@@ -190,12 +235,15 @@ def solve(O, C, S, R, method="quadratic", stats=None):
     ivs = reduce_intervals(ivs)                 
     if stats is not None:
         stats["s_after_dup"] = len(ivs)
-    ivs = reduce_r2(ivs)                        
+    ivs = reduce_r2(ivs)
+    proper = is_proper(ivs)
     if stats is not None:
         stats["s_after_r2"] = len(ivs)
-        stats["proper"] = is_proper(ivs)
+        stats["proper"] = proper
     if method not in METHODS:
         raise ValueError(f"unknown method {method!r}; choose from: {', '.join(METHODS)}")
+    if method == "linear" and not proper:
+        raise NotProperError("method 'linear' needs a proper family (no nested ranges)")
     if stats is not None:
         stats["method"] = method
     dp, par = METHODS[method](Os, Cs, ivs)
@@ -213,6 +261,9 @@ def main():
         chosen, cost = solve(O, C, S, R, method=method, stats=st)
     except InfeasibleError as e:
         print("Infeasible:", e)
+        sys.exit(2)
+    except NotProperError as e:
+        print("Error:", e)
         sys.exit(2)
     dt = time.perf_counter() - t0
     ok, wet = evaluate(O, C, S, R, chosen)

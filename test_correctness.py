@@ -3,10 +3,12 @@ import sys
 from common import evaluate, InfeasibleError
 from bruteforce import brute_force
 from baseline import solve_baseline
-from fasterAlgo import solve, MinTree
+from fasterAlgo import solve, MinTree, NotProperError
 
 SOLVERS = [("baseline", solve_baseline),
-           ("quadratic", lambda O, C, S, R: solve(O, C, S, R, "quadratic"))]
+           ("quadratic", lambda O, C, S, R: solve(O, C, S, R, "quadratic")),
+           ("segtree", lambda O, C, S, R: solve(O, C, S, R, "segtree")),
+           ("linear", lambda O, C, S, R: solve(O, C, S, R, "linear"))]   # only on proper instances
 
 
 def random_instance(rng):
@@ -56,6 +58,7 @@ def main():
     trials = int(sys.argv[1]) if len(sys.argv) > 1 else 2000
     rng = random.Random(360)
     infeasible = 0
+    linear_runs = 0
     for t in range(trials):
         O, C, S, R = random_instance(rng)
         _, opt = brute_force(O, C, S, R)
@@ -67,11 +70,16 @@ def main():
             except InfeasibleError:
                 assert opt is None, (name, "said infeasible but brute force found", opt, O, C, S, R)
                 continue
+            except NotProperError:
+                continue                          # linear doesn't apply here
+            if name == "linear":
+                linear_runs += 1
             ok, wet = evaluate(O, C, S, R, chosen)
             assert ok, (name, "returned a set that leaves a tree dry", O, C, S, R, chosen)
             assert wet == cost, (name, "reported cost", cost, "but real cost is", wet)
             assert cost == opt, (name, "found", cost, "but optimum is", opt, O, C, S, R)
-    print(f"OK: {trials} random instances, all solvers match brute force ({infeasible} infeasible)")
+    print(f"OK: {trials} random instances, all solvers match brute force "
+          f"({infeasible} infeasible; linear DP ran on {linear_runs} proper instances)")
 
 
 if __name__ == "__main__":

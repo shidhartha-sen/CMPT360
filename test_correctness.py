@@ -2,8 +2,9 @@ import random
 import sys
 from common import evaluate, InfeasibleError
 from bruteforce import brute_force
-from baseline import solve_baseline
+from baseline import solve_baseline, SearchLimit
 from fasterAlgo import solve, MinTree, NotProperError
+from gen import generate
 
 SOLVERS = [("baseline", solve_baseline),
            ("quadratic", lambda O, C, S, R: solve(O, C, S, R, "quadratic")),
@@ -83,5 +84,36 @@ def main():
           f"({infeasible} infeasible; linear DP ran on {linear_runs} proper instances)")
 
 
+# bigger instances (s up to 60), too slow for brute force so the exact algorithms must agree.
+def medium_check(trials=300):
+    rng = random.Random(7)
+    baseline_done = 0
+    for t in range(trials):
+        s = rng.randint(10, 60)
+        L = rng.randint(50, 400)
+        rmin = rng.randint(1, 10)
+        rmax = rmin if rng.random() < 0.4 else rmin + rng.randint(1, 20)   # 40%: equal radii
+        O, C, S, R = generate(s, rng.randint(1, 3 * s), rng.randint(0, 3 * s), L, rmin, rmax, t)
+        answers = {}
+        for m in ("quadratic", "segtree", "auto"):
+            chosen, cost = solve(O, C, S, R, m)
+            ok, wet = evaluate(O, C, S, R, chosen)
+            assert ok and wet == cost, (m, "bad solution on medium instance", t)
+            answers[m] = cost
+        if s <= 40:                               # baseline joins if it finishes in 2 s
+            try:
+                _, cost = solve_baseline(O, C, S, R, time_limit=2)
+                answers["baseline"] = cost
+                baseline_done += 1
+            except SearchLimit:
+                pass                              # too slow on this one: skip it
+        assert len(set(answers.values())) == 1, ("algorithms disagree", t, answers)
+    print(f"OK: {trials} medium instances (s up to 60), all exact algorithms agree "
+          f"(baseline finished within 2 s on {baseline_done} of them)")
+
+
 if __name__ == "__main__":
-    main()
+    if "--medium" in sys.argv:
+        medium_check()
+    else:
+        main()

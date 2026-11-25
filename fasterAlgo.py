@@ -1,10 +1,11 @@
 import sys
+import time
 from common import read_instance, build_intervals, check_feasible, evaluate, InfeasibleError
 
 INF = float("inf")
-L_, R_, IDX, OA, OB, CA, CB = range(7)        # positions in an interval record
+L_, R_, IDX, OA, OB, CA, CB = range(7)        # positions 
 
-#remove exact duplicate intervals. Returns intervals sorted by (l, r)."""
+#remove exact duplicate intervals. Returns intervals sorted by (l, r).
 def reduce_intervals(ivs):
     ivs = sorted(ivs, key=lambda v: (v[L_], v[R_], v[IDX]))
     dedup = []
@@ -58,6 +59,9 @@ def dp_quadratic(Os, Cs, ivs):
     return dp, par
 
 
+METHODS = {"quadratic": dp_quadratic}       # more will be added in later steps
+
+
 #Best chain that reaches past the last tree; follow parent pointers back.
 
 def _finish(o, ivs, dp, par):
@@ -89,23 +93,31 @@ def solve(O, C, S, R, method="quadratic", stats=None):
     if stats is not None:
         stats["s_after_r2"] = len(ivs)
     dp, par = dp_quadratic(Os, Cs, ivs)         
+    if method not in METHODS:
+        raise ValueError(f"unknown method {method!r}; choose from: {', '.join(METHODS)}")
+    if stats is not None:
+        stats["method"] = method
+    dp, par = METHODS[method](Os, Cs, ivs)
     return _finish(o, ivs, dp, par)             
 
 def main():
     O, C, S, R = read_instance(sys.argv[1])
+    method = sys.argv[sys.argv.index("--method") + 1] if "--method" in sys.argv else "quadratic"
     st = {}
+    t0 = time.perf_counter()
     try:
-        chosen, cost = solve(O, C, S, R, stats=st)
+        chosen, cost = solve(O, C, S, R, method=method, stats=st)
     except InfeasibleError as e:
-        print("infeasible:", e)
+        print("Infeasible:", e)
         sys.exit(2)
+    dt = time.perf_counter() - t0
     ok, wet = evaluate(O, C, S, R, chosen)
     print("chosen sprinklers (1-based):", sorted(i + 1 for i in chosen))
     print("cacti watered:", cost, "| checker agrees:", ok and wet == cost)
     if "--stats" in sys.argv:
+        print(f"method: {st.get('method')}   time: {dt:.4f} s")
         print(f"sprinklers: input {st.get('s_input')}, after R1 {st.get('s_after_r1')}, "
               f"after duplicates {st.get('s_after_dup')}, after R2 {st.get('s_after_r2')}")
-
 
 if __name__ == "__main__":
     main()

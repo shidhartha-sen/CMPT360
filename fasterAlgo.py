@@ -31,6 +31,12 @@ def reduce_r2(ivs):
     keep.sort(key=lambda v: (v[L_], v[R_]))
     return keep
 
+# true if no interval is nested in another, enough to check neighbours.
+def is_proper(ivs):
+    for a, b in zip(ivs, ivs[1:]):
+        if not (a[L_] < b[L_] and a[R_] < b[R_]):
+            return False
+    return True
 
 #ivs sorted by (l, r). dp[j] = best chain ending with j that waters every tree <= r_j.
 def dp_quadratic(Os, Cs, ivs):
@@ -187,6 +193,7 @@ def solve(O, C, S, R, method="quadratic", stats=None):
     ivs = reduce_r2(ivs)                        
     if stats is not None:
         stats["s_after_r2"] = len(ivs)
+        stats["proper"] = is_proper(ivs)
     if method not in METHODS:
         raise ValueError(f"unknown method {method!r}; choose from: {', '.join(METHODS)}")
     if stats is not None:
@@ -215,6 +222,7 @@ def main():
         print(f"method: {st.get('method')}   time: {dt:.4f} s")
         print(f"sprinklers: input {st.get('s_input')}, after R1 {st.get('s_after_r1')}, "
               f"after duplicates {st.get('s_after_dup')}, after R2 {st.get('s_after_r2')}")
+        print(f"proper family (no nested ranges): {st.get('proper')}")
 
 if __name__ == "__main__":
     main()

@@ -8,7 +8,8 @@ from fasterAlgo import solve, MinTree, NotProperError
 SOLVERS = [("baseline", solve_baseline),
            ("quadratic", lambda O, C, S, R: solve(O, C, S, R, "quadratic")),
            ("segtree", lambda O, C, S, R: solve(O, C, S, R, "segtree")),
-           ("linear", lambda O, C, S, R: solve(O, C, S, R, "linear"))]   # only on proper instances
+           ("linear", lambda O, C, S, R: solve(O, C, S, R, "linear")),   # only on proper instances
+           ("auto", lambda O, C, S, R: solve(O, C, S, R, "auto"))]
 
 
 def random_instance(rng):

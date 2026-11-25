@@ -224,7 +224,8 @@ def _finish(o, ivs, dp, par):
     return chosen[::-1], best
 
 
-def solve(O, C, S, R, method="quadratic", stats=None):
+# auto (default): linear if the reduced family is proper, else segtree.
+def solve(O, C, S, R, method="auto", stats=None):
     Os, Cs, ivs = build_intervals(O, C, S, R)
     o = len(Os)
     if o == 0:
@@ -240,8 +241,10 @@ def solve(O, C, S, R, method="quadratic", stats=None):
     if stats is not None:
         stats["s_after_r2"] = len(ivs)
         stats["proper"] = proper
+    if method == "auto":
+        method = "linear" if proper else "segtree"
     if method not in METHODS:
-        raise ValueError(f"unknown method {method!r}; choose from: {', '.join(METHODS)}")
+        raise ValueError(f"unknown method {method!r}; choose from: auto, {', '.join(METHODS)}")
     if method == "linear" and not proper:
         raise NotProperError("method 'linear' needs a proper family (no nested ranges)")
     if stats is not None:
@@ -254,7 +257,7 @@ def main():
         print(__doc__)
         sys.exit(1)
     O, C, S, R = read_instance(sys.argv[1])
-    method = sys.argv[sys.argv.index("--method") + 1] if "--method" in sys.argv else "quadratic"
+    method = sys.argv[sys.argv.index("--method") + 1] if "--method" in sys.argv else "auto"
     st = {}
     t0 = time.perf_counter()
     try:

@@ -104,11 +104,8 @@ class MinTree:
             hi >>= 1
         return res
 
+# same recurrence as dp_quadratic, sprinklers processed in (l, r) order.
 def dp_segtree(Os, Cs, ivs):
-    """Same recurrence as dp_quadratic, sprinklers processed in (l, r) order.
-    Overlap steps: the min-tree, indexed by rank of r, holds dp[i] - cb_i for
-    every sprinkler already processed -> best predecessor in one range query.
-    Gap steps: still a simple loop for now (made fast in the next step)."""
     n = len(ivs)
     c = len(Cs)
     dp = [INF] * n
@@ -122,15 +119,27 @@ def dp_segtree(Os, Cs, ivs):
     OFF = c + 1                     # makes value + OFF >= 1
     SENT = (2 * c + 3) * M          # bigger than any real key
     tree = MinTree(n, SENT)
+    gap = []                        # monotone queue: r increasing, dp increasing
+    head = 0                        # gap[head:] is the live part
+    ent = 0                         # next position in order_r to enter the queue
     for j in range(n):
         l, r, _, oa, ob, ca, cb = ivs[j]
         best, bp = (cb - ca, -1) if oa == 0 else (INF, -1)      # start
-        if oa > 0:                                               # gap steps (slow loop for now)
-            for i in range(j):
-                if dp[i] < INF and ivs[i][R_] < l and ivs[i][OB] == oa:
-                    cand = dp[i] + cb - ca
-                    if cand < best:
-                        best, bp = cand, i
+        if oa > 0:                                               # gap steps
+            while ent < n and rs[ent] < l:                       # these now end left of l_j
+                k = order_r[ent]
+                ent += 1
+                dk = dp[k]
+                if dk < INF:
+                    while len(gap) > head and dp[gap[-1]] >= dk: # worse and leaves sooner
+                        gap.pop()
+                    gap.append(k)
+            a = Os[oa - 1]                                       # last tree left of l_j
+            while head < len(gap) and ivs[gap[head]][R_] < a:    # would leave tree a dry
+                head += 1
+            if head < len(gap):                                  # front = smallest dp
+                i = gap[head]
+                best, bp = dp[i] + cb - ca, i
         lo = bisect_left(rs, l)                                  # overlap: l <= r_i < r
         hi = bisect_left(rs, r)
         if lo < hi:
@@ -178,7 +187,6 @@ def solve(O, C, S, R, method="quadratic", stats=None):
     ivs = reduce_r2(ivs)                        
     if stats is not None:
         stats["s_after_r2"] = len(ivs)
-    dp, par = dp_quadratic(Os, Cs, ivs)         
     if method not in METHODS:
         raise ValueError(f"unknown method {method!r}; choose from: {', '.join(METHODS)}")
     if stats is not None:

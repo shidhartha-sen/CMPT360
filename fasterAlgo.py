@@ -4,8 +4,8 @@ from common import read_instance, build_intervals, check_feasible, evaluate, Inf
 INF = float("inf")
 L_, R_, IDX, OA, OB, CA, CB = range(7)        # positions in an interval record
 
+#remove exact duplicate intervals. Returns intervals sorted by (l, r)."""
 def reduce_intervals(ivs):
-    """Remove exact duplicate intervals. Returns intervals sorted by (l, r)."""
     ivs = sorted(ivs, key=lambda v: (v[L_], v[R_], v[IDX]))
     dedup = []
     for v in ivs:
@@ -13,6 +13,22 @@ def reduce_intervals(ivs):
             continue                      # same interval as the previous one
         dedup.append(v)
     return dedup
+
+# among intervals that water exactly the same trees, drop any interval that contains another one.
+def reduce_r2(ivs):
+    groups = {}
+    for v in ivs:
+        groups.setdefault((v[OA], v[OB]), []).append(v)    
+    keep = []
+    for g in groups.values():
+        g.sort(key=lambda v: (-v[L_], v[R_]))              
+        min_r = INF                                        
+        for v in g:                                        
+            if v[R_] < min_r:                              
+                keep.append(v)
+                min_r = v[R_]
+    keep.sort(key=lambda v: (v[L_], v[R_]))
+    return keep
 
 
 #ivs sorted by (l, r). dp[j] = best chain ending with j that waters every tree <= r_j.
@@ -65,13 +81,15 @@ def solve(O, C, S, R, method="quadratic", stats=None):
         return [], 0
     check_feasible(o, ivs)
     if stats is not None:
-        stats.update(s_input=len(S), s_after_r1=len(ivs)) 
-    ivs = reduce_intervals(ivs)           # also sorts by (l, r)
+        stats.update(s_input=len(S), s_after_r1=len(ivs))
+    ivs = reduce_intervals(ivs)                 
     if stats is not None:
-        stats["s_after_dup"] = len(ivs)    
-    dp, par = dp_quadratic(Os, Cs, ivs)
-    return _finish(o, ivs, dp, par)
-
+        stats["s_after_dup"] = len(ivs)
+    ivs = reduce_r2(ivs)                        
+    if stats is not None:
+        stats["s_after_r2"] = len(ivs)
+    dp, par = dp_quadratic(Os, Cs, ivs)         
+    return _finish(o, ivs, dp, par)             
 
 def main():
     O, C, S, R = read_instance(sys.argv[1])
@@ -85,8 +103,8 @@ def main():
     print("chosen sprinklers (1-based):", sorted(i + 1 for i in chosen))
     print("cacti watered:", cost, "| checker agrees:", ok and wet == cost)
     if "--stats" in sys.argv:
-            print(f"sprinklers: input {st.get('s_input')}, after R1 {st.get('s_after_r1')}, "
-              f"after duplicates {st.get('s_after_dup')}")
+        print(f"sprinklers: input {st.get('s_input')}, after R1 {st.get('s_after_r1')}, "
+              f"after duplicates {st.get('s_after_dup')}, after R2 {st.get('s_after_r2')}")
 
 
 if __name__ == "__main__":

@@ -110,7 +110,8 @@ def check_feasible(o, ivs):
 
 # readable summary of a solution, long lists are shortened and re-checked with evaluate().
 def format_solution(O, C, S, R, chosen, cost, label, show=20):
-    chosen = sorted(chosen, key=lambda i: (S[i], i))      # left to right along the line
+    # left to right along the line
+    chosen = sorted(chosen, key=lambda i: (S[i], i))
     ok, wet = evaluate(O, C, S, R, chosen)
     ids = [str(i + 1) for i in chosen]
     pos = [str(S[i]) for i in chosen]

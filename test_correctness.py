@@ -9,7 +9,8 @@ from gen import generate
 SOLVERS = [("baseline", solve_baseline),
            ("quadratic", lambda O, C, S, R: solve(O, C, S, R, "quadratic")),
            ("segtree", lambda O, C, S, R: solve(O, C, S, R, "segtree")),
-           ("linear", lambda O, C, S, R: solve(O, C, S, R, "linear")),   # only on proper instances
+           # only on proper instances
+           ("linear", lambda O, C, S, R: solve(O, C, S, R, "linear")),
            ("auto", lambda O, C, S, R: solve(O, C, S, R, "auto"))]
 
 
@@ -41,7 +42,8 @@ def test_mintree(trials=300):
     for _ in range(trials):
         n = rng.randint(1, 40)
         tree = MinTree(n, SENT)
-        arr = [SENT] * n                          # plain list kept in sync, for comparison
+        # plain list kept in sync, for comparison
+        arr = [SENT] * n
         for _ in range(60):
             if rng.random() < 0.5:
                 pos, key = rng.randrange(n), rng.randint(0, 1000)
@@ -73,7 +75,8 @@ def main():
                 assert opt is None, (name, "said infeasible but brute force found", opt, O, C, S, R)
                 continue
             except NotProperError:
-                continue                          # linear doesn't apply here
+                # linear doesn't apply here
+                continue
             if name == "linear":
                 linear_runs += 1
             ok, wet = evaluate(O, C, S, R, chosen)
@@ -92,7 +95,8 @@ def medium_check(trials=300):
         s = rng.randint(10, 60)
         L = rng.randint(50, 400)
         rmin = rng.randint(1, 10)
-        rmax = rmin if rng.random() < 0.4 else rmin + rng.randint(1, 20)   # 40%: equal radii
+        # 40%: equal radii
+        rmax = rmin if rng.random() < 0.4 else rmin + rng.randint(1, 20)
         O, C, S, R = generate(s, rng.randint(1, 3 * s), rng.randint(0, 3 * s), L, rmin, rmax, t)
         answers = {}
         for m in ("quadratic", "segtree", "auto"):
@@ -100,13 +104,15 @@ def medium_check(trials=300):
             ok, wet = evaluate(O, C, S, R, chosen)
             assert ok and wet == cost, (m, "bad solution on medium instance", t)
             answers[m] = cost
-        if s <= 40:                               # baseline joins if it finishes in 2 s
+        # baseline joins if it finishes in 2 s
+        if s <= 40:
             try:
                 _, cost = solve_baseline(O, C, S, R, time_limit=2)
                 answers["baseline"] = cost
                 baseline_done += 1
             except SearchLimit:
-                pass                              # too slow on this one: skip it
+                # too slow on this one: skip it
+                pass
         assert len(set(answers.values())) == 1, ("algorithms disagree", t, answers)
     print(f"OK: {trials} medium instances (s up to 60), all exact algorithms agree "
           f"(baseline finished within 2 s on {baseline_done} of them)")

@@ -3,7 +3,8 @@ import time
 from common import read_instance, build_intervals, check_feasible, format_solution, InfeasibleError, bisect_left
 
 INF = float("inf")
-L_, R_, IDX, OA, OB, CA, CB = range(7)        # positions
+# positions
+L_, R_, IDX, OA, OB, CA, CB = range(7)
 
 # raised when linear is asked for but some range is nested in another
 class NotProperError(ValueError):
@@ -15,7 +16,8 @@ def reduce_intervals(ivs):
     dedup = []
     for v in ivs:
         if dedup and dedup[-1][L_] == v[L_] and dedup[-1][R_] == v[R_]:
-            continue                      # same interval as the previous one
+            # same interval as the previous one
+            continue
         dedup.append(v)
     return dedup
 
@@ -120,47 +122,67 @@ def dp_segtree(Os, Cs, ivs):
     c = len(Cs)
     dp = [INF] * n
     par = [-1] * n
-    order_r = sorted(range(n), key=lambda k: ivs[k][R_])   # sprinklers sorted by r
-    rs = [ivs[k][R_] for k in order_r]                      # their right ends, sorted
-    rank = [0] * n                                          # rank[k] = tree position of k
+    # sprinklers sorted by r
+    order_r = sorted(range(n), key=lambda k: ivs[k][R_])
+    # their right ends, sorted
+    rs = [ivs[k][R_] for k in order_r]
+    # rank[k] = tree position of k
+    rank = [0] * n
     for pos, k in enumerate(order_r):
         rank[k] = pos
-    M = n + 1                       # key = (value + OFF) * M + index
-    OFF = c + 1                     # makes value + OFF >= 1
-    SENT = (2 * c + 3) * M          # bigger than any real key
+    # key = (value + OFF) * M + index
+    M = n + 1
+    # makes value + OFF >= 1
+    OFF = c + 1
+    # bigger than any real key
+    SENT = (2 * c + 3) * M
     tree = MinTree(n, SENT)
-    gap = []                        # monotone queue: r increasing, dp increasing
-    head = 0                        # gap[head:] is the live part
-    ent = 0                         # next position in order_r to enter the queue
+    # monotone queue: r increasing, dp increasing
+    gap = []
+    # gap[head:] is the live part
+    head = 0
+    # next position in order_r to enter the queue
+    ent = 0
     for j in range(n):
         l, r, _, oa, ob, ca, cb = ivs[j]
-        best, bp = (cb - ca, -1) if oa == 0 else (INF, -1)      # start
-        if oa > 0:                                               # gap steps
-            while ent < n and rs[ent] < l:                       # these now end left of l_j
+        # start
+        best, bp = (cb - ca, -1) if oa == 0 else (INF, -1)
+        # gap steps
+        if oa > 0:
+            # these now end left of l_j
+            while ent < n and rs[ent] < l:
                 k = order_r[ent]
                 ent += 1
                 dk = dp[k]
                 if dk < INF:
-                    while len(gap) > head and dp[gap[-1]] >= dk: # worse and leaves sooner
+                    # worse and leaves sooner
+                    while len(gap) > head and dp[gap[-1]] >= dk:
                         gap.pop()
                     gap.append(k)
-            a = Os[oa - 1]                                       # last tree left of l_j
-            while head < len(gap) and ivs[gap[head]][R_] < a:    # would leave tree a dry
+            # last tree left of l_j
+            a = Os[oa - 1]
+            # would leave tree a dry
+            while head < len(gap) and ivs[gap[head]][R_] < a:
                 head += 1
-            if head < len(gap):                                  # front = smallest dp
+            # front = smallest dp
+            if head < len(gap):
                 i = gap[head]
                 best, bp = dp[i] + cb - ca, i
-        lo = bisect_left(rs, l)                                  # overlap: l <= r_i < r
+        # overlap: l <= r_i < r
+        lo = bisect_left(rs, l)
         hi = bisect_left(rs, r)
         if lo < hi:
             key = tree.query(lo, hi)
             if key < SENT:
-                i = key % M                                      # unpack index
-                cand = key // M - OFF + cb                       # unpack value, add cb_j
+                # unpack index
+                i = key % M
+                # unpack value, add cb_j
+                cand = key // M - OFF + cb
                 if cand < best:
                     best, bp = cand, i
         dp[j], par[j] = best, bp
-        if best < INF:                                           # now j can be a predecessor
+        # now j can be a predecessor
+        if best < INF:
             tree.update(rank[j], (best - cb + OFF) * M + j)
     return dp, par
 
@@ -169,35 +191,45 @@ def dp_linear(Os, Cs, ivs):
     n = len(ivs)
     dp = [INF] * n
     par = [-1] * n
-    ov, ov_head = [], 0             # overlap queue: dp[i] - cb_i increasing
-    gp, gp_head = [], 0             # gap queue: dp[i] increasing
-    left = 0                        # indices < left end before l_j
+    # overlap queue: dp[i] - cb_i increasing
+    ov, ov_head = [], 0
+    # gap queue: dp[i] increasing
+    gp, gp_head = [], 0
+    # indices < left end before l_j
+    left = 0
     for j in range(n):
         l, r, _, oa, ob, ca, cb = ivs[j]
-        if j > 0 and dp[j - 1] < INF:                            # j-1 joins the overlap block
+        # j-1 joins the overlap block
+        if j > 0 and dp[j - 1] < INF:
             v = dp[j - 1] - ivs[j - 1][CB]
             while len(ov) > ov_head and dp[ov[-1]] - ivs[ov[-1]][CB] >= v:
                 ov.pop()
             ov.append(j - 1)
-        while left < j and ivs[left][R_] < l:                    # ends before l_j: overlap -> gap
+        # ends before l_j: overlap -> gap
+        while left < j and ivs[left][R_] < l:
             if dp[left] < INF:
                 while len(gp) > gp_head and dp[gp[-1]] >= dp[left]:
                     gp.pop()
                 gp.append(left)
             left += 1
-        while ov_head < len(ov) and ov[ov_head] < left:          # no longer reaches l_j
+        # no longer reaches l_j
+        while ov_head < len(ov) and ov[ov_head] < left:
             ov_head += 1
         if oa == 0:
-            best, bp = cb - ca, -1                               # start
+            # start
+            best, bp = cb - ca, -1
         else:
             best, bp = INF, -1
-            a = Os[oa - 1]                                       # last tree left of l_j
+            # last tree left of l_j
+            a = Os[oa - 1]
             while gp_head < len(gp) and ivs[gp[gp_head]][R_] < a:
-                gp_head += 1                                     # would leave tree a dry
+                # would leave tree a dry
+                gp_head += 1
             if gp_head < len(gp):
                 i = gp[gp_head]
                 best, bp = dp[i] + cb - ca, i
-        if ov_head < len(ov):                                    # overlap
+        # overlap
+        if ov_head < len(ov):
             i = ov[ov_head]
             cand = dp[i] - ivs[i][CB] + cb
             if cand < best:

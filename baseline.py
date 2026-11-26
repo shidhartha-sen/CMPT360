@@ -69,7 +69,8 @@ def solve_baseline(O, C, S, R, time_limit=None, stats=None):
         dfs(0, 0)
     finally:
         if stats is not None:
-            stats["nodes"] = nodes              # recorded even if we stopped early
+            # recorded even if we stopped early
+            stats["nodes"] = nodes
     return best_set, best_cost
 
 

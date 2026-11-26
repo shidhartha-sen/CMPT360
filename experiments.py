@@ -1,4 +1,4 @@
-# timing experiments for the report: python3 experiments.py scaling [--quick]
+# timing experiments for the report: python3 experiments.py scaling|density|density_baseline [--quick]
 # instances have o = c = s (N = 3s), radii all 10 ("equal") or uniform in [1, 20] ("varied"),
 # line length chosen so a point is reached by d sprinklers on average (default d = 4).
 import os
@@ -46,6 +46,10 @@ def median_with_timeouts(times, timeouts):
     return None if m == float("inf") else m
 
 
+def fmt(med):
+    return f"{med:.6f}" if med is not None else ""
+
+
 def write_csv(name, header, rows):
     path = os.path.join("results", name)
     with open(path, "w") as f:
@@ -84,8 +88,7 @@ def exp_scaling(quick=False):
                     nodes.append(st.get("nodes", 0))
             med = median_with_timeouts(times, timeouts)
             mid_nodes = sorted(nodes)[len(nodes) // 2] if nodes else ""
-            rows.append([algo, radii, s, 3 * s, f"{med:.6f}" if med is not None else "",
-                         timeouts, seeds, mid_nodes])
+            rows.append([algo, radii, s, 3 * s, fmt(med), timeouts, seeds, mid_nodes])
             shown = f"{med:.4f} s" if med is not None else "> limit"
             print(f"{algo:9s} {radii:6s} s={s:<8d} median={shown:12s} timeouts={timeouts}/{seeds}",
                   flush=True)
@@ -96,7 +99,51 @@ def exp_scaling(quick=False):
               ["algo", "radii", "s", "N", "median_sec", "timeouts", "runs", "median_nodes"], rows)
 
 
+# the three DPs at a fixed size while the coverage density d changes.
+def exp_density(quick=False):
+    sizes = ({"quadratic": 1000, "segtree": 20000, "linear": 20000} if quick else
+             {"quadratic": 4000, "segtree": 200000, "linear": 200000})
+    rows = []
+    for d in [1, 2, 3, 4, 6, 8, 12]:
+        for algo in ("quadratic", "segtree", "linear"):
+            radii = "equal" if algo == "linear" else "varied"
+            s = sizes[algo]
+            times = [run(algo, instance(s, d=d, radii=radii, seed=seed))[0] for seed in range(3)]
+            med = median_with_timeouts(times, 0)
+            rows.append([algo, radii, s, d, fmt(med)])
+            print(f"d={d:<3d} {algo:9s} s={s:<7d} median={med:.4f} s", flush=True)
+    write_csv("density_quick.csv" if quick else "density.csv",
+              ["algo", "radii", "s", "density", "median_sec"], rows)
+
+
+# the baseline at a fixed size while d changes, more seeds since its times vary a lot.
+def exp_density_baseline(quick=False):
+    s, seeds = (25, 5) if quick else (40, 11)
+    rows = []
+    for d in [1, 2, 3, 4, 6, 8, 12, 16]:
+        times, nodes, timeouts = [], [], 0
+        for seed in range(seeds):
+            t, st = run("baseline", instance(s, d=d, radii="varied", seed=100 + seed))
+            if t is None:
+                timeouts += 1
+            else:
+                times.append(t)
+                nodes.append(st["nodes"])
+        med = median_with_timeouts(times, timeouts)
+        mid_nodes = sorted(nodes)[len(nodes) // 2] if nodes else ""
+        rows.append([s, d, fmt(med), timeouts, seeds, mid_nodes])
+        shown = f"{med:.4f} s" if med is not None else "> limit"
+        print(f"d={d:<3d} baseline s={s} median={shown:12s} timeouts={timeouts}/{seeds}", flush=True)
+    write_csv("density_baseline_quick.csv" if quick else "density_baseline.csv",
+              ["s", "density", "median_sec", "timeouts", "runs", "median_nodes_finished"], rows)
+
+
 if __name__ == "__main__":
+    jobs = {"scaling": exp_scaling,
+            "density": exp_density,
+            "density_baseline": exp_density_baseline}
     what = sys.argv[1] if len(sys.argv) > 1 else "scaling"
-    if what == "scaling":
-        exp_scaling(quick="--quick" in sys.argv)
+    if what not in jobs:
+        print("choose one of:", ", ".join(jobs))
+        sys.exit(1)
+    jobs[what](quick="--quick" in sys.argv)

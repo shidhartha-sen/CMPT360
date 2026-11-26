@@ -1,0 +1,5 @@
+algo,radii,s,rss_after_generation_MB,peak_rss_MB
+baseline,varied,30,12.7,12.9
+quadratic,varied,2000,12.9,14.1
+segtree,varied,64000,20.7,55.0
+linear,equal,64000,20.7,52.1

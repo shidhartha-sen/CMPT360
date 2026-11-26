@@ -1,0 +1,4 @@
+density,trials,greedy_suboptimal,pct_suboptimal,mean_excess_when_wrong,max_excess,mean_rel_excess_pct
+2,100,45,45.0,1.40,4,4.4
+4,100,90,90.0,2.80,8,6.5
+8,100,92,92.0,4.76,11,9.8

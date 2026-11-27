@@ -1,5 +1,5 @@
 # timing experiments for the report:
-# python3 experiments.py scaling|density|density_baseline|reductions|greedy|phases|memory [--quick]
+# python3 experiments.py scaling|density|density_baseline|reductions|greedy|phases|memory|plots
 # instances have o = c = s (N = 3s), radii all 10 ("equal") or uniform in [1, 20] ("varied"),
 # line length chosen so a point is reached by d sprinklers on average (default d = 4).
 import os
@@ -119,33 +119,22 @@ def write_csv(name, header, rows):
 
 
 # Times each algorithm at growing sizes, stops growing one once its median goes over the limit
-#
-# parameters:
-#   quick: tiny sizes, just to test the script
-def exp_scaling(quick=False):
-    # each plan is (algorithm, radii, sizes, seeds per size)
-    if quick:
-        plans = [("baseline", "varied", [10, 20, 30], 3),
-                 ("quadratic", "varied", [250, 500, 1000], 3),
-                 ("segtree", "varied", [1000, 2000, 4000], 3),
-                 ("segtree", "equal", [1000, 2000, 4000], 3),
-                 ("linear", "equal", [1000, 2000, 4000], 3)]
-    else:
-        # the real run (step 19)
-        baseline_sizes = list(range(10, 71, 4))
-        quadratic_sizes = []
-        for k in range(10):
-            quadratic_sizes.append(250 * 2 ** k)
-        fast_sizes = []
-        for k in range(12):
-            fast_sizes.append(1000 * 2 ** k)
+def exp_scaling():
+    baseline_sizes = list(range(10, 71, 4))
+    quadratic_sizes = []
+    for k in range(10):
+        quadratic_sizes.append(250 * 2 ** k)
+    fast_sizes = []
+    for k in range(12):
+        fast_sizes.append(1000 * 2 ** k)
 
-        plans = [("baseline", "varied", baseline_sizes, 5),
-                 ("baseline", "equal", baseline_sizes, 5),
-                 ("quadratic", "varied", quadratic_sizes, 3),
-                 ("segtree", "varied", fast_sizes, 3),
-                 ("segtree", "equal", fast_sizes, 3),
-                 ("linear", "equal", fast_sizes, 3)]
+    # each plan is (algorithm, radii, sizes, seeds per size)
+    plans = [("baseline", "varied", baseline_sizes, 5),
+             ("baseline", "equal", baseline_sizes, 5),
+             ("quadratic", "varied", quadratic_sizes, 3),
+             ("segtree", "varied", fast_sizes, 3),
+             ("segtree", "equal", fast_sizes, 3),
+             ("linear", "equal", fast_sizes, 3)]
 
     rows = []
     for algo, radii, sizes, seeds in plans:
@@ -180,21 +169,12 @@ def exp_scaling(quick=False):
             if median is None or median > LIMIT:
                 break
 
-    name = "scaling.csv"
-    if quick:
-        name = "scaling_quick.csv"
-    write_csv(name, ["algo", "radii", "s", "N", "median_sec", "timeouts", "runs", "median_nodes"], rows)
+    write_csv("scaling.csv",["algo", "radii", "s", "N", "median_sec", "timeouts", "runs", "median_nodes"], rows)
 
 
 # Times the three DPs at a fixed size while the coverage density d changes
-#
-# parameters:
-#   quick: smaller sizes, just to test the script
-def exp_density(quick=False):
-    if quick:
-        sizes = {"quadratic": 1000, "segtree": 20000, "linear": 20000}
-    else:
-        sizes = {"quadratic": 4000, "segtree": 200000, "linear": 200000}
+def exp_density():
+    sizes = {"quadratic": 4000, "segtree": 200000, "linear": 200000}
 
     rows = []
     for d in [1, 2, 3, 4, 6, 8, 12]:
@@ -214,24 +194,14 @@ def exp_density(quick=False):
             rows.append([algo, radii, s, d, fmt(median)])
             print(f"d={d:<3d} {algo:9s} s={s:<7d} median={median:.4f} s", flush=True)
 
-    name = "density.csv"
-    if quick:
-        name = "density_quick.csv"
-    write_csv(name, ["algo", "radii", "s", "density", "median_sec"], rows)
+    write_csv("density.csv",["algo", "radii", "s", "density", "median_sec"], rows)
 
 
 # Times the baseline at a fixed size while d changes,
 # with more seeds since its times vary a lot
-#
-# parameters:
-#   quick: smaller size and fewer seeds, just to test the script
-def exp_density_baseline(quick=False):
-    if quick:
-        s = 25
-        seeds = 5
-    else:
-        s = 40
-        seeds = 11
+def exp_density_baseline():
+    s = 40
+    seeds = 11
 
     rows = []
     for d in [1, 2, 3, 4, 6, 8, 12, 16]:
@@ -260,20 +230,12 @@ def exp_density_baseline(quick=False):
             shown = f"{median:.4f} s"
         print(f"d={d:<3d} baseline s={s} median={shown:12s} timeouts={timeouts}/{seeds}", flush=True)
 
-    name = "density_baseline.csv"
-    if quick:
-        name = "density_baseline_quick.csv"
-    write_csv(name, ["s", "density", "median_sec", "timeouts", "runs", "median_nodes_finished"], rows)
+    write_csv("density_baseline.csv",["s", "density", "median_sec", "timeouts", "runs", "median_nodes_finished"], rows)
 
 
 # Counts how many sprinklers R1, duplicates and R2 remove, for sparse vs dense trees
-#
-# parameters:
-#   quick: smaller size, just to test the script
-def exp_reductions(quick=False):
+def exp_reductions():
     s = 100000
-    if quick:
-        s = 10000
 
     rows = []
     # orange trees per sprinkler
@@ -296,10 +258,7 @@ def exp_reductions(quick=False):
                   f"{after_dup:>7}  after R2 {after_r2:>7}  kept {100 * kept:.1f}%",
                   flush=True)
 
-    name = "reductions.csv"
-    if quick:
-        name = "reductions_quick.csv"
-    write_csv(name, ["s", "o", "o_over_s", "density", "after_R1", "after_dup", "after_R2",
+    write_csv("reductions.csv",["s", "o", "o_over_s", "density", "after_R1", "after_dup", "after_R2",
                      "kept_fraction", "sec"], rows)
 
 
@@ -350,13 +309,8 @@ def greedy(O, C, S, R):
 
 
 # Compares greedy with the optimum on many random instances
-#
-# parameters:
-#   quick: fewer trials, just to test the script
-def exp_greedy(quick=False):
+def exp_greedy():
     trials = 1000
-    if quick:
-        trials = 100
 
     rows = []
     for d in [2, 4, 8]:
@@ -391,23 +345,14 @@ def exp_greedy(quick=False):
         print(f"d={d}: greedy suboptimal on {worse}/{trials} ({percent_worse:.1f}%), "
               f"{mean_excess:.2f} extra cacti on average when wrong", flush=True)
 
-    name = "greedy.csv"
-    if quick:
-        name = "greedy_quick.csv"
-    write_csv(name, ["density", "trials", "greedy_suboptimal", "pct_suboptimal",
+    write_csv("greedy.csv",["density", "trials", "greedy_suboptimal", "pct_suboptimal",
                      "mean_excess_when_wrong", "max_excess", "mean_rel_excess_pct"], rows)
 
 
 # Splits the time into preprocessing (sort, ranks, reductions) and the DP itself
-#
-# parameters:
-#   quick: smaller sizes, just to test the script
-def exp_phases(quick=False):
+def exp_phases():
     # each plan is (size, DPs to time)
-    if quick:
-        plan = [(2000, ["quadratic", "segtree", "linear"]), (64000, ["segtree", "linear"])]
-    else:
-        plan = [(8000, ["quadratic", "segtree", "linear"]), (512000, ["segtree", "linear"])]
+    plan = [(8000, ["quadratic", "segtree", "linear"]), (512000, ["segtree", "linear"])]
 
     dps = {"quadratic": dp_quadratic, "segtree": dp_segtree, "linear": dp_linear}
 
@@ -433,10 +378,7 @@ def exp_phases(quick=False):
                 print(f"s={s:<7d} seed={seed} {algo:9s} preprocessing {preprocess_seconds:.3f} s   "
                       f"DP {dp_seconds:.3f} s", flush=True)
 
-    name = "phases.csv"
-    if quick:
-        name = "phases_quick.csv"
-    write_csv(name, ["s", "seed", "dp", "preprocess_sec", "dp_sec"], rows)
+    write_csv("phases.csv",["s", "seed", "dp", "preprocess_sec", "dp_sec"], rows)
 
 
 # Runs in a fresh process, prints peak memory (KB) before and after solving
@@ -455,17 +397,10 @@ def _mem_child(algo, s, radii):
 
 
 # Measures peak memory of each algorithm, each one in its own process
-#
-# parameters:
-#   quick: smaller sizes, just to test the script
-def exp_memory(quick=False):
+def exp_memory():
     # each plan is (algorithm, size, radii)
-    if quick:
-        plan = [("baseline", 30, "varied"), ("quadratic", 2000, "varied"),
-                ("segtree", 64000, "varied"), ("linear", 64000, "equal")]
-    else:
-        plan = [("baseline", 40, "varied"), ("quadratic", 16000, "varied"),
-                ("segtree", 1024000, "varied"), ("linear", 1024000, "equal")]
+    plan = [("baseline", 40, "varied"), ("quadratic", 16000, "varied"),
+            ("segtree", 1024000, "varied"), ("linear", 1024000, "equal")]
 
     rows = []
     for algo, s, radii in plan:
@@ -480,10 +415,120 @@ def exp_memory(quick=False):
         print(f"{algo:9s} s={s:<8d} peak memory {peak_mb:.0f} MB (instance alone: {before_mb:.0f} MB)",
               flush=True)
 
-    name = "memory.csv"
-    if quick:
-        name = "memory_quick.csv"
-    write_csv(name, ["algo", "radii", "s", "rss_after_generation_MB", "peak_rss_MB"], rows)
+    write_csv("memory.csv",["algo", "radii", "s", "rss_after_generation_MB", "peak_rss_MB"], rows)
+
+
+# Reads one of our csv files from results/ by hand
+#
+# parameters:
+#   name: the file name
+#
+# returns: list of rows, each a dict from column name to value
+def load(name):
+    path = os.path.join("results", name)
+    rows = []
+    with open(path) as f:
+        header = f.readline().strip().split(",")
+        for line in f:
+            if line.strip():
+                rows.append(dict(zip(header, line.strip().split(","))))
+
+    return rows
+
+
+# Draws the report figures from the csv files into plots/
+def plots():
+    import matplotlib
+    # write files, no window
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+    os.makedirs("plots", exist_ok=True)
+
+    # (algorithm, radii) -> (colour, marker, label)
+    style = {("baseline", "varied"): ("#b3261e", "o", "Baseline B&B (varied radii)"),
+             ("baseline", "equal"): ("#e8a33d", "s", "Baseline B&B (equal radii)"),
+             ("quadratic", "varied"): ("#6a3d9a", "^", "Chain DP, O(s²)"),
+             ("segtree", "varied"): ("#1f5fa8", "D", "Fast DP, O(N log N) (varied radii)"),
+             ("segtree", "equal"): ("#5fa8d3", "d", "Fast DP, O(N log N) (equal radii)"),
+             ("linear", "equal"): ("#2e8b57", "v", "Proper-family DP, O(N) (equal radii)")}
+    plt.rcParams.update({"font.size": 9, "axes.spines.top": False, "axes.spines.right": False})
+
+    # Figure 1: running time vs size (log-log)
+    rows = load("scaling.csv")
+    fig, ax = plt.subplots(figsize=(6.3, 2.75))
+    for key, (colour, marker, label) in style.items():
+        points = []
+        for r in rows:
+            if (r["algo"], r["radii"]) == key and r["median_sec"]:
+                points.append((int(r["N"]), float(r["median_sec"])))
+
+        if len(points) > 0:
+            ax.plot(*zip(*points), marker=marker, ms=4, lw=1.4, color=colour, label=label)
+
+    ax.axhline(LIMIT, color="grey", ls="--", lw=0.8)
+    ax.text(40, LIMIT * 1.15, "10 s limit", color="grey", fontsize=8)
+    ax.set_xscale("log")
+    ax.set_yscale("log")
+    ax.set_xlabel("instance size N = o + c + s  (o = c = s)")
+    ax.set_ylabel("median running time (s)")
+    ax.legend(fontsize=7, frameon=False, loc="lower right")
+    ax.grid(True, lw=0.3, alpha=0.5)
+    fig.tight_layout()
+    fig.savefig("plots/fig1_scaling.png", dpi=220)
+    plt.close(fig)
+
+    # Figure 2: effect of coverage density
+    fig, (left_ax, right_ax) = plt.subplots(1, 2, figsize=(6.3, 2.3))
+
+    # (a) baseline, only the runs whose median finished
+    baseline_rows = load("density_baseline.csv")
+    xs = []
+    ys = []
+    for r in baseline_rows:
+        if r["median_sec"]:
+            xs.append(float(r["density"]))
+            ys.append(float(r["median_sec"]))
+    left_ax.plot(xs, ys, "o-", color="#b3261e", ms=4)
+
+    # label how many runs went over the limit, alternating above and below
+    for k, r in enumerate(baseline_rows):
+        if int(r["timeouts"]) and r["median_sec"]:
+            offset = (0, -12)
+            if k % 2 == 0:
+                offset = (0, 6)
+            left_ax.annotate(f'{r["timeouts"]}/{r["runs"]}', (float(r["density"]), float(r["median_sec"])),
+                             textcoords="offset points", xytext=offset,
+                             ha="center", fontsize=6.5, color="#b3261e")
+
+    left_ax.set_yscale("log")
+    left_ax.set_xlabel("coverage density d")
+    left_ax.set_ylabel("median time (s)")
+    left_ax.set_title("(a) Baseline, s = 40 (labels: runs > 10 s)", fontsize=8.5)
+    left_ax.grid(True, lw=0.3, alpha=0.5)
+
+    # (b) the polynomial algorithms
+    density_rows = load("density.csv")
+    for key, label in [(("quadratic", "varied"), "Chain DP, s = 4000"),
+                       (("segtree", "varied"), "Fast DP, s = 200 000"),
+                       (("linear", "equal"), "Proper DP, s = 200 000")]:
+        colour, marker, _ = style[key]
+        points = []
+        for r in density_rows:
+            if (r["algo"], r["radii"]) == key and r["median_sec"]:
+                points.append((float(r["density"]), float(r["median_sec"])))
+        right_ax.plot(*zip(*points), marker=marker, ms=4, color=colour, label=label)
+
+    right_ax.set_xlabel("coverage density d")
+    right_ax.set_ylabel("median time (s)")
+    right_ax.set_title("(b) Polynomial algorithms", fontsize=9)
+    right_ax.set_ylim(bottom=0)
+    right_ax.legend(fontsize=7, frameon=False, loc="upper left")
+    right_ax.grid(True, lw=0.3, alpha=0.5)
+    fig.tight_layout()
+    fig.savefig("plots/fig2_density.png", dpi=220)
+    plt.close(fig)
+
+    print("wrote plots/fig1_scaling.png and plots/fig2_density.png")
 
 
 if __name__ == "__main__":
@@ -498,7 +543,8 @@ if __name__ == "__main__":
             "reductions": exp_reductions,
             "greedy": exp_greedy,
             "phases": exp_phases,
-            "memory": exp_memory}
+            "memory": exp_memory,
+            "plots": plots}
 
     what = "scaling"
     if len(sys.argv) > 1:
@@ -508,4 +554,4 @@ if __name__ == "__main__":
         print("choose one of:", ", ".join(jobs))
         sys.exit(1)
 
-    jobs[what](quick="--quick" in sys.argv)
+    jobs[what]()

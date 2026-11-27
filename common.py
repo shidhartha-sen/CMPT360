@@ -70,13 +70,7 @@ class InfeasibleError(Exception):
     """Raised when some orange tree is not watered by any sprinkler"""
 
 
-"""
-sort O and C:  describe each sprinkler as (l, r, idx, oa, ob, ca, cb):
-it waters trees [oa, ob) and cacti [ca, cb) in sorted order.
-
-
-R1: sprinklers that water no tree are dropped.
-"""
+#sort O and C:  describe each sprinkler as (l, r, idx, oa, ob, ca, cb): it waters trees [oa, ob) and cacti [ca, cb) in sorted order.
 def build_intervals(O, C, S, R):
     Os = sorted(O)
     Cs = sorted(C)

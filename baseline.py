@@ -2,98 +2,136 @@ import sys
 import time
 from common import read_instance, build_intervals, check_feasible, format_solution, InfeasibleError
 
+
 # raised when the search runs longer than the time limit
 class SearchLimit(Exception):
     pass
 
 
+# Exact branch-and-bound search: branches on the sprinklers that reach
+# the leftmost dry tree, and cuts any branch that can't beat the best so far
+#
+# parameters:
+#   O, C, S, R: tree positions, cactus positions, sprinkler positions, radii
+#   time_limit: optional, seconds before giving up with SearchLimit
+#   stats: optional dict, filled with the number of search nodes
+#
+# returns: (chosen sprinkler indices, cacti watered)
+# raises: InfeasibleError if some tree cant be watered, SearchLimit on timeout
 def solve_baseline(O, C, S, R, time_limit=None, stats=None):
-    Os, Cs, ivs = build_intervals(O, C, S, R)
-    o = len(Os)
-    if o == 0:
+    trees, cacti, intervals = build_intervals(O, C, S, R)
+    num_trees = len(trees)
+    if num_trees == 0:
         return [], 0
-    check_feasible(o, ivs)
 
-    covering = [[] for _ in range(o)]          
-    for k, iv in enumerate(ivs):
-        for t in range(iv[3], iv[4]):
+    check_feasible(num_trees, intervals)
+
+    # covering[t] = the sprinklers that water tree t, farthest reaching first
+    covering = []
+    for t in range(num_trees):
+        covering.append([])
+    for k in range(len(intervals)):
+        first_tree = intervals[k][3]
+        end_tree = intervals[k][4]
+        for t in range(first_tree, end_tree):
             covering[t].append(k)
-    for lst in covering:
-        lst.sort(key=lambda k: -ivs[k][1])     
+    for sprinklers in covering:
+        sprinklers.sort(key=lambda k: -intervals[k][1])
 
-    # all the useful sprinklers (feasible by check_feasible)
-    wet_all = set()
-    for iv in ivs:
-        wet_all.update(range(iv[5], iv[6]))
-    best_cost = len(wet_all)
-    best_set = [iv[2] for iv in ivs]
+    # starting best: use every useful sprinkler (feasible by check_feasible)
+    all_wet_cacti = set()
+    for iv in intervals:
+        first_cactus = iv[5]
+        end_cactus = iv[6]
+        for t in range(first_cactus, end_cactus):
+            all_wet_cacti.add(t)
+    best_cost = len(all_wet_cacti)
+    best_set = []
+    for iv in intervals:
+        best_set.append(iv[2])
 
-    hits = [0] * len(Cs)                        
+    # hits[t] = number of chosen sprinklers watering cactus t
+    hits = [0] * len(cacti)
     chosen = []
     nodes = 0
     start = time.perf_counter()
-    sys.setrecursionlimit(max(10000, 4 * o + 100))
+    sys.setrecursionlimit(max(10000, 4 * num_trees + 100))
 
-    def dfs(p, cost):
-        # invariant: trees 0..p-1 watered, tree p dry, cost < best_cost
+    # trees 0..dry_tree-1 are watered, tree dry_tree is dry, cost < best_cost
+    def search(dry_tree, cost):
         nonlocal best_cost, best_set, nodes
         nodes += 1
-        # checked every 1024 nodes
-        if time_limit is not None and (nodes & 1023) == 0 \
-                and time.perf_counter() - start > time_limit:
-            raise SearchLimit()
-        for k in covering[p]:
-            l, r, idx, oa, ob, ca, cb = ivs[k]
+
+        # only check the clock every 1024 nodes
+        if time_limit is not None and nodes % 1024 == 0:
+            if time.perf_counter() - start > time_limit:
+                raise SearchLimit()
+
+        for k in covering[dry_tree]:
+            left, right, index, first_tree, end_tree, first_cactus, end_cactus = intervals[k]
+
+            # water this sprinkler's cacti, counting the new ones
             added = 0
-            # water this sprinkler's cacti
-            for t in range(ca, cb):              
+            for t in range(first_cactus, end_cactus):
                 if hits[t] == 0:
                     added += 1
                 hits[t] += 1
-            # bound
-            if cost + added < best_cost:         
-                chosen.append(idx)
-                if ob == o:                      
-                    # every tree watered: new best
-                    best_cost, best_set = cost + added, chosen[:]
+
+            # bound: only go deeper if this can still beat the best
+            if cost + added < best_cost:
+                chosen.append(index)
+
+                if end_tree == num_trees:
+                    # every tree watered, new best
+                    best_cost = cost + added
+                    best_set = chosen[:]
                 else:
-                    # next dry tree is index ob
-                    dfs(ob, cost + added)        
+                    # next dry tree is end_tree
+                    search(end_tree, cost + added)
 
                 chosen.pop()
+
             # undo
-            for t in range(ca, cb):              
+            for t in range(first_cactus, end_cactus):
                 hits[t] -= 1
 
     try:
-        dfs(0, 0)
+        search(0, 0)
     finally:
+        # recorded even if we stopped early
         if stats is not None:
-            # recorded even if we stopped early
             stats["nodes"] = nodes
+
     return best_set, best_cost
 
 
 def main():
     if len(sys.argv) < 2:
-        print("usage: python3 baseline.py instance.txt [--limit SECONDS]")
+        print("usage: python3 baseline.py instance.txt [--limit SECONDS] [--stats]")
         sys.exit(1)
+
     O, C, S, R = read_instance(sys.argv[1])
-    limit = float(sys.argv[sys.argv.index("--limit") + 1]) if "--limit" in sys.argv else None
-    st = {}
-    t0 = time.perf_counter()
+
+    limit = None
+    if "--limit" in sys.argv:
+        limit = float(sys.argv[sys.argv.index("--limit") + 1])
+
+    stats = {}
+    start = time.perf_counter()
     try:
-        chosen, cost = solve_baseline(O, C, S, R, time_limit=limit, stats=st)
+        chosen, cost = solve_baseline(O, C, S, R, time_limit=limit, stats=stats)
     except InfeasibleError as e:
         print("Infeasible:", e)
         sys.exit(2)
     except SearchLimit:
-        print(f"stopped after {limit} s ({st.get('nodes')} search nodes): optimum not proven")
+        print(f"stopped after {limit} s ({stats.get('nodes')} search nodes): optimum not proven")
         sys.exit(3)
-    dt = time.perf_counter() - t0
+    elapsed = time.perf_counter() - start
+
     print(format_solution(O, C, S, R, chosen, cost, "baseline: branch-and-bound search"))
+
     if "--stats" in sys.argv:
-        print(f"search nodes: {st['nodes']}   time: {dt:.4f} s")
+        print(f"search nodes: {stats['nodes']}   time: {elapsed:.4f} s")
 
 
 if __name__ == "__main__":

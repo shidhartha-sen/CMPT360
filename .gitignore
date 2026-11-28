@@ -1,2 +1,6 @@
 t*.txt
 t*.txt
+__pycache__/
+dups.txt
+sparse.txt
+s5000.txt
